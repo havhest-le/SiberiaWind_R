@@ -24,42 +24,35 @@ mapCrop <- map %>%
   st_intersection(st_as_sf(as(ext, "SpatialPolygons")) %>% 
                       st_set_crs(4326)) %>% st_geometry 
 
-
 # Elgygytgen
-Elgy <- read_sf("Data/Lakes/Elgygytgen/Lake_area.shp")
-Elgy <- st_transform(Elgy, 4326)
-El_buf <- st_transform(Elgy, crs = CRS("+proj=laea")) %>%
+Elgy <- read_sf("Data/Lakes/Elgygytgen/Lake_area.shp") %>% st_transform(4326)
+proj <- glue("+proj=laea +lon_0={st_coordinates(st_centroid(Elgy))[,1]} +lat_0={st_coordinates(st_centroid(Elgy))[,2]}") # Ely is the central point
+El_buf <- st_transform(Elgy, crs = CRS(proj)) %>%
   st_buffer(400000) %>% st_transform(4326)
-El_plus_buffer <- data.frame(Elgy, El_buf) %>%
-  select("geometry", "geometry.1") 
-names(El_plus_buffer)[1:2] <- c("lake", "buffer")
-head(El_plus_buffer)
 plot(mapCrop)
-plot(El_plus_buffer$buffer, add = TRUE)
-plot(El_plus_buffer$lake, add = TRUE)
+plot(Elgy$geometry, col = "blue", add = T)
+plot(El_buf$geometry, add = T)
+
 
 # Khamra
-Khamra <- read_sf("Data/Lakes/Khamra/Khamra_polygon.shp")
-Khamra <- st_transform(Khamra, 4326)
-Kha_buf <- st_transform(Khamra, crs = CRS("+proj=laea")) %>%
+Khamra <- read_sf("Data/Lakes/Khamra/Khamra_polygon.shp") %>% st_transform(4326)
+proj <- glue("+proj=laea +lon_0={st_coordinates(st_centroid(Khamra))[,1]} +lat_0={st_coordinates(st_centroid(Khamra))[,2]}")
+Kha_buf <- st_transform(Khamra, crs = CRS(proj)) %>%
     st_buffer(400000) %>% st_transform(4326)
-Ka_plus_buffer <- data.frame(Khamra, Kha_buf) %>%
-    select("geometry", "geometry.1") 
-names(Ka_plus_buffer)[1:2] <- c("lake", "buffer")
-head(Ka_plus_buffer)
-plot(Ka_plus_buffer$buffer, add = TRUE)
-plot(Ka_plus_buffer$lake, add = TRUE)
+plot(Khamra$geometry, col = "blue", add = T)
+plot(Kha_buf$geometry, add = T)
+
 
 # Illerney
-Ill <- read_sf("Data/Lakes/Illerney/Umriss_Polygon_Ilriney.shp")
-Ill <- st_transform(Ill, 4326)
-Ill_buf <- st_transform(Ill, crs = CRS("+proj=laea")) %>%
+Ill <- read_sf("Data/Lakes/Illerney/Umriss_Polygon_Ilriney.shp") %>% st_transform(4326)
+proj <- glue("+proj=laea +lon_0={st_coordinates(st_centroid(Ill))[,1]} +lat_0={st_coordinates(st_centroid(Ill))[,2]}")
+Ill_buf <- st_transform(Ill, crs = CRS(proj)) %>%
   st_buffer(400000) %>% st_transform(4326)
-Ill_plus_buffer <- data.frame(Ill, Ill_buf) %>%
-  select("geometry", "geometry.1") 
-names(Ill_plus_buffer)[1:2] <- c("lake", "buffer")
-head(Ill_plus_buffer)
-plot(Ill_plus_buffer$buffer, add = TRUE)
-plot(Ill_plus_buffer$lake, add = TRUE)
+plot(Ill$geometry, col = "blue", add = T)
+plot(Ill_buf$geometry, add = T)
 
+lakes <- list(Elgy = list(lake = Elgy, buffer = El_buf)
+              Khamra = ())
+
+save(lakes, file = "Results/lakes.RData")
 
