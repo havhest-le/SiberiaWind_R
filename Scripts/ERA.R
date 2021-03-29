@@ -1,17 +1,5 @@
 rm(list = ls(all= TRUE))
 
-load("Results/lakes.RData")
-lakes
-
-lake <- data.frame(lakes$Elgy$lake, lakes$Khamra$lake, lakes$Ill$lake) %>%
-  select("geometry", "geometry.1", "geometry.2")
-colnames(lake) <- c("Ely", "Kham", "Ill")
-
-buffer <- data.frame(lakes$Elgy$buffer, lakes$Khamra$buffer, lakes$Ill$buffer) %>%
-  select("geometry", "geometry.1", "geometry.2")
-colnames(buffer) <- c("Ely_buf", "Kham_buf", "Ill_buf")
-
-
 library(rgdal)
 library(rgeos)
 library(raster)
@@ -38,6 +26,20 @@ library(ggthemes)
 library(ggplot2)
 library(ggnewscale)
 
+data_coord <- data.frame(location = c("Khamra","Illirney","Rauchagytgyn", "Elgygytgyn"),
+                         lon = c(112.98, 167.57, 168.71, 172.15), lat = c(59.99, 67.15, 67.80, 67.58))
+map     <- rnaturalearth::ne_coastline(scale = 50, returnclass = "sf")
+ext     <- extent(c(103.82, 180, 50.07, 80.56))
+load("Results/lakes.RData")
+lakes
+
+lake <- data.frame(lakes$Elgy$lake, lakes$Khamra$lake, lakes$Ill$lake) %>%
+  select("geometry", "geometry.1", "geometry.2")
+colnames(lake) <- c("Ely", "Kham", "Ill")
+
+buffer <- data.frame(lakes$Elgy$buffer, lakes$Khamra$buffer, lakes$Ill$buffer) %>%
+  select("geometry", "geometry.1", "geometry.2")
+colnames(buffer) <- c("Ely_buf", "Kham_buf", "Ill_buf")
 
 ####
 # Input data ####
@@ -54,8 +56,6 @@ fls_Tab <- do.call("rbind", lapply(files, function(x) {
 }))
 
 
-
-
 y = 1987
 cat(glue("\rWir befinden uns im Jahre {y} nach Christus. Ganz Gallien ist nicht mehr von den R?mern besetzt."))
 subTab <- subset(fls_Tab, as.numeric(format(date, "%Y")) %in% y &
@@ -66,8 +66,8 @@ subTab <- subset(fls_Tab, as.numeric(format(date, "%Y")) %in% y &
 # How can I create a for loop or function for every single buffer??? It's all in lists (I don't like lists......)
 rasterList <- lapply(unique(subTab$path), function(x) {
   
-  u <- raster::crop(brick(x, varname=  "u", level = 1), i)
-  v <- raster::crop(brick(x, varname = "v", level = 1), i)
+  u <- raster::crop(brick(x, varname=  "u", level = 1), lakes$Ill$buffer)
+  v <- raster::crop(brick(x, varname = "v", level = 1), lakes$Ill$buffer)
   
   dir <- atan2(u, v)*(180/pi)
   dir[] <- ifelse(dir[]<0, 360+dir[], dir[])
@@ -145,54 +145,7 @@ dev.off()
 
 
 
-
-####
-# Calculating the variance of wind direction and speed ####
-####
-
-var_dir <- calc(x = dirBrick, function(x) {
-  crc <- circular(x, type = "angles", units = "degrees") # circular erstellen mit Datenpunkten auf Kreis
-  out <- quantile(crc, probs = c(0.2,0.8)) #Quantile festlegen
-  if(diff(out)<0) { #damit nicht Minuswerte
-    diff(out)+360
-  } else diff(out)
-})
-
-map_var <- as(var_dir, "SpatialPixelsDataFrame")
-map_var_data <- as.data.frame(map_var)
-colnames(map_var_data) <- c("value", "x", "y")
-
-plotVarMap <- ggplot() +
-  geom_tile(data = map_var_data, aes(x = x, y = y, fill = value), alpha = 0.8)+
-  geom_sf(data = mapCrop)+
-  scale_fill_gradientn(colours = rev(viridis::viridis(99)),
-                       breaks = round(seq(min(map_var_data[, 1]), max(map_var_data[, 1]), length = 6), 0))+
-  geom_point(mapping = aes(x = LONGITUDE,y = LATITUDE, alpha= FRP, size = FRP),
-             data = subFire, colour = "white", show.legend = F) +
-  scale_alpha(range = c(1/100,1/1000))+
-  geom_point(mapping = aes(x = lon, y = lat, shape = location), data = data_coord,
-             size = 4, stroke = 2, show.legend = F)+
-  scale_shape_manual(values = c(0:5))+
-  theme_minimal() +
-  labs(subtitle = "The variance of wind direction", fill = "Interquantile\n[Q0.8-Q0.2]")+
-  xlab("") +
-  ylab("") +
-  ylim(c(50, 80))+
-  theme(plot.subtitle = element_text(size = 20, hjust = 0.5, vjust = -3),
-        legend.title = element_text(size = 12, vjust = 0.5),
-        legend.text = element_text(size = 8, vjust = 0.75))
-
-
-
-
-
-figure_1 <- ggarrange(plotDirSpeedMap, plotVarMap, nrow = 1, ncol = 2, widths = c(1,1),heights = c(1,1),
-                      common.legend = F, legend = "bottom")
-        
-
-####
-# Plotting windrose ####
-####
+# Creating Wingroses
 extr_dir <- raster::extract(dirBrick, data_coord[, 2:3])
 extr_spd <- raster::extract(spdBrick, data_coord[, 2:3])
 extr_Tab <- data.frame(loc = rep(data_coord$location, ncol(extr_dir)), # f?r jedes Datum einmal 1:4 durchlaufen lassen
@@ -200,7 +153,7 @@ extr_Tab <- data.frame(loc = rep(data_coord$location, ncol(extr_dir)), # f?r jed
                        dir = c(extr_dir), spd = c(extr_spd)) 
 
 head(extr_Tab)
-
+i = Illirney 
 plts <- lapply(data_coord$location, function(i) {
   c_sub <- subset(extr_Tab, extr_Tab$loc == i) # bei i wird auf data_coord zugriffen!!! 
   breaks <- seq(0, 360, 10)
@@ -210,7 +163,7 @@ plts <- lapply(data_coord$location, function(i) {
            bins = as.numeric(as.character(bins))) %>%
     group_by(bins) %>%
     summarise(count = n(), spd = median(spd))
-    ggplot(data_bins)+
+  ggplot(data_bins)+
     geom_bar(aes(bins, count , fill = spd), stat = "identity", show.legend = F)+
     scale_fill_gradientn(colours = "grey20", breaks = round(seq(3, 16, length = 4), 0), 
                          limits = c(0,16))+
@@ -237,3 +190,51 @@ dev.off()
 
 } ### end
 
+
+# ####
+# # Calculating the variance of wind direction and speed ####
+# ####
+# 
+# var_dir <- calc(x = dirBrick, function(x) {
+#   crc <- circular(x, type = "angles", units = "degrees") # circular erstellen mit Datenpunkten auf Kreis
+#   out <- quantile(crc, probs = c(0.2,0.8)) #Quantile festlegen
+#   if(diff(out)<0) { #damit nicht Minuswerte
+#     diff(out)+360
+#   } else diff(out)
+# })
+# 
+# map_var <- as(var_dir, "SpatialPixelsDataFrame")
+# map_var_data <- as.data.frame(map_var)
+# colnames(map_var_data) <- c("value", "x", "y")
+# 
+# plotVarMap <- ggplot() +
+#   geom_tile(data = map_var_data, aes(x = x, y = y, fill = value), alpha = 0.8)+
+#   geom_sf(data = mapCrop)+
+#   scale_fill_gradientn(colours = rev(viridis::viridis(99)),
+#                        breaks = round(seq(min(map_var_data[, 1]), max(map_var_data[, 1]), length = 6), 0))+
+#   geom_point(mapping = aes(x = LONGITUDE,y = LATITUDE, alpha= FRP, size = FRP),
+#              data = subFire, colour = "white", show.legend = F) +
+#   scale_alpha(range = c(1/100,1/1000))+
+#   geom_point(mapping = aes(x = lon, y = lat, shape = location), data = data_coord,
+#              size = 4, stroke = 2, show.legend = F)+
+#   scale_shape_manual(values = c(0:5))+
+#   theme_minimal() +
+#   labs(subtitle = "The variance of wind direction", fill = "Interquantile\n[Q0.8-Q0.2]")+
+#   xlab("") +
+#   ylab("") +
+#   ylim(c(50, 80))+
+#   theme(plot.subtitle = element_text(size = 20, hjust = 0.5, vjust = -3),
+#         legend.title = element_text(size = 12, vjust = 0.5),
+#         legend.text = element_text(size = 8, vjust = 0.75))
+# 
+# 
+# 
+# 
+# 
+# figure_1 <- ggarrange(plotDirSpeedMap, plotVarMap, nrow = 1, ncol = 2, widths = c(1,1),heights = c(1,1),
+#                       common.legend = F, legend = "bottom")
+#         
+
+####
+# Plotting windrose ####
+####
