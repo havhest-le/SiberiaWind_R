@@ -1,5 +1,7 @@
 rm(list = ls(all= TRUE))
 
+load("Results/lakes.RData")
+
 library(rgdal)
 library(rgeos)
 library(raster)
@@ -27,17 +29,11 @@ library(ggplot2)
 library(ggnewscale)
 
 
-
-map     <- rnaturalearth::ne_coastline(scale = 50, returnclass = "sf")
-ext     <- extent(c(103.82, 180, 50.07, 80.56))
-
 ####
 # Input data ####
 ####
 
 files <- list.files(path = "Z:/data/bioing/data/Data_Reanalyse/ERA5", pattern = "*.nc", all.files = T, full.names = T)
-MODIS <- read.csv2("Z:/data/bioing/data/Projekte/Fires/East Siberia/R_Data/MODIS_east_siberia.txt")
-MODIS_raster <- raster("Z:/data/bioing/data/Projekte/Fires/East Siberia/MOD_yakutia1.tif")
 
 fls_Tab <- do.call("rbind", lapply(files, function(x) {
   nf <- nc_open(x)
@@ -48,42 +44,19 @@ fls_Tab <- do.call("rbind", lapply(files, function(x) {
 }))
 
 
-data_coord <- data.frame(location = c("Khamra","Satagay 2.0","Malaya Chabyda","Illirney","Rauchagytgyn", "Elgygytgyn"),
-                         lon = c(112.98, 117.99, 129.41,168.20,168.71, 172.90), lat = c(59.99, 63.08,61.92,67.21, 67.80, 67.30))
 
+y = 1987
 
-map <- rnaturalearth::ne_coastline(scale = 50, returnclass = "sf")
-ext <- as(extent(c(103.82, 180, 50.07, 80.56)), "SpatialPolygons")
-
-mapCrop <- map %>% 
-  st_intersection(st_as_sf(as(ext, "SpatialPolygons")) %>% 
-                    st_set_crs(4326)) %>% st_geometry 
-
-MODIS <- select(.data = MODIS,"FID", "LATITUDE","LONGITUDE", "ACQ_DATE", "FRP")
-names(MODIS)[names(MODIS) == "ACQ_DATE"] <- "TIME"
-
-MODIS$TIME <- as.POSIXct(x = MODIS$TIME, format = '%d.%m.%Y %H:%M:%S')
-MODIS$FRP <- as.numeric(MODIS$FRP)
-head(MODIS$TIME)
-
-MODIS_ext <- MODIS %>%
-  filter(LONGITUDE >=103.82 & LONGITUDE <= 180 & LATITUDE >= 50.07  & LATITUDE <= 80.56 & FRP >= 1)
-
-for(y in 2019){
-
-cat(glue("\rWir befinden uns im Jahre {y} nach Christus. Ganz Gallien ist nicht mehr von den Römern besetzt."))
+cat(glue("\rWir befinden uns im Jahre {y} nach Christus. Ganz Gallien ist nicht mehr von den R?mern besetzt."))
 subTab <- subset(fls_Tab, as.numeric(format(date, "%Y")) %in% y &
-                          as.numeric(format(date, "%m")) %in% c(6:8)) # Monat 6 bis 8 bei mehreren Jahren und Monaten
-
-subFire <- subset(MODIS_ext, as.numeric(format(TIME, "%Y")) %in% y &
-                             as.numeric(format(TIME, "%m")) %in% c(6:8))
+                          as.numeric(format(date, "%m")) %in% c(6:8))
 
 
 # Creating a list for every date with wind direction and speed
 rasterList <- lapply(unique(subTab$path), function(x) {
   
-  u <- raster::crop(brick(x, varname=  "u", level = 1), ext)
-  v <- raster::crop(brick(x, varname = "v", level = 1), ext)
+  u <- raster::crop(brick(x, varname=  "u", level = 1), lakes$Khamra$buffer)
+  v <- raster::crop(brick(x, varname = "v", level = 1), lakes$Khamra$buffer)
   
   dir <- atan2(u, v)*(180/pi)
   dir[] <- ifelse(dir[]<0, 360+dir[], dir[])
@@ -104,23 +77,20 @@ data_map <- as(medSpd, "SpatialPixelsDataFrame")
 data_spd <- as.data.frame(data_map)
 colnames(data_spd) <- c("value", "x", "y")
 
-aggrR   <- aggregate(brick(medSpd, medDir), 20)
-r_coord <- coordinates(aggrR)
-r_coord[,1] <- ifelse(r_coord[,1]>180,NA, r_coord[,1])
-arrow <- data.frame(r_coord, geosphere::destPoint(r_coord, aggrR[[2]], aggrR[[1]]*60*60*5))
+data_brick   <- brick(medSpd, medDir)
+brick_coord <- coordinates(data_brick)
+brick_coord[,1] <- ifelse(brick_coord[,1]>180,NA, brick_coord[,1])
+arrow <- data.frame(brick_coord, geosphere::destPoint(brick_coord, data_brick[[2]], data_brick[[1]]*60*60*7))
 
 
 
-plotDirSpeedMap <- ggplot() +  
+ggplot() +  
     geom_tile(data = data_spd, aes(x = x, y = y, fill = value), alpha = 0.8) + 
-    geom_sf(data = mapCrop)+
-    geom_point(mapping = aes(x = lon, y = lat, shape = location), data = data_coord, colour = "black",
-               fill = "white", size = 4, stroke = 2)+
+    geom_sf(data = lakes$Khamra$buffer, mapping = aes(colours = "white", size = 10), show.legend = F)+
     scale_fill_gradientn(colours = rev(viridis::plasma(99)),
                        breaks = round(seq(min(medSpd[]), max(medSpd[]), length = 5), 0))+
     geom_segment(data = subset(arrow, lon>0), aes(x = x, xend = lon, y = y, yend = lat),
                  arrow = arrow(length = unit(0.1, "cm")), colour = "black")+
-    scale_shape_manual(name = "Lakes", values = c(0:5))+
     theme_minimal() +
     labs(subtitle = "The average wind direction and speed", fill = "Wind speed\n[m/s]")+
     xlab("") +
@@ -130,6 +100,15 @@ plotDirSpeedMap <- ggplot() +
           legend.title = element_text(size = 12, vjust = 1),
           legend.text = element_text(size = 8, vjust = 0.75))
 
+
+rows <- split(arrow, seq(nrow(arrow)))
+lines <- lapply(rows, function(row) {
+lmat <- matrix(unlist(row[2:5]), ncol = 2, byrow = TRUE)
+  st_linestring(lmat)})
+
+lines <- st_sfc(lines)
+lines_sf <- st_sf('geometry' = lines)
+plot(lines_sf)
 
 ####
 # Calculating the variance of wind direction and speed ####
@@ -180,7 +159,7 @@ figure_1 <- ggarrange(plotDirSpeedMap, plotVarMap, nrow = 1, ncol = 2, widths = 
 ####
 extr_dir <- raster::extract(dirBrick, data_coord[, 2:3])
 extr_spd <- raster::extract(spdBrick, data_coord[, 2:3])
-extr_Tab <- data.frame(loc = rep(data_coord$location, ncol(extr_dir)), # für jedes Datum einmal 1:4 durchlaufen lassen
+extr_Tab <- data.frame(loc = rep(data_coord$location, ncol(extr_dir)), # f?r jedes Datum einmal 1:4 durchlaufen lassen
                        time = rep(subTab$date, each = nrow(extr_dir)), 
                        dir = c(extr_dir), spd = c(extr_spd)) 
 
