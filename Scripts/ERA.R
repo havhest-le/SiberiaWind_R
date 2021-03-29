@@ -104,15 +104,14 @@ lines <- lapply(rows, function(row) {
   st_linestring(lmat)})
 lines <- st_sfc(lines)
 lines_sf <- st_sf('geometry' = lines)
-lines_CRS <- st_transform(lines_sf, 4326)
-
-lake_CRS <- st_set_crs(lakes$Khamra$lake, "+proj=laea") %>% st_geometry()
-
+lines_CRS <- st_set_crs(lines_sf, "+proj=longlat +datum=WGS84") %>% st_geometry()
+Khamra_lake <- st_set_crs(lakes$Khamra$lake, "+proj=longlat +datum=WGS84") %>% st_geometry()
+plot(lines_CRS)
 
 plot(lakes$Khamra$lake) 
-plot(lines_sf$geometry, add = T)
+plot(lines_CRS, add = T)
 
-intersect <- st_intersects(x = lakes$Khamra$lake, y = lines_sf) # we need same crs for x and y fr intersection
+intersect <- st_intersects(x = lakes$Khamra$lake, y = lines_sf)
 plot(intersect)
 
 
