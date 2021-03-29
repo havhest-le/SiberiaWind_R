@@ -3,6 +3,15 @@ rm(list = ls(all= TRUE))
 load("Results/lakes.RData")
 lakes
 
+lake <- data.frame(lakes$Elgy$lake, lakes$Khamra$lake, lakes$Ill$lake) %>%
+  select("geometry", "geometry.1", "geometry.2")
+colnames(lake) <- c("Ely", "Kham", "Ill")
+
+buffer <- data.frame(lakes$Elgy$buffer, lakes$Khamra$buffer, lakes$Ill$buffer) %>%
+  select("geometry", "geometry.1", "geometry.2")
+colnames(buffer) <- c("Ely_buf", "Kham_buf", "Ill_buf")
+
+
 library(rgdal)
 library(rgeos)
 library(raster)
@@ -45,16 +54,20 @@ fls_Tab <- do.call("rbind", lapply(files, function(x) {
 }))
 
 
+
+
 y = 1987
 cat(glue("\rWir befinden uns im Jahre {y} nach Christus. Ganz Gallien ist nicht mehr von den R?mern besetzt."))
 subTab <- subset(fls_Tab, as.numeric(format(date, "%Y")) %in% y &
                           as.numeric(format(date, "%m")) %in% c(6:8))
 
 # Creating a list for every date with wind direction and speed
+# for (i in buffer) {
+#   
 rasterList <- lapply(unique(subTab$path), function(x) {
   
-  u <- raster::crop(brick(x, varname=  "u", level = 1), lakes$Khamra$buffer)
-  v <- raster::crop(brick(x, varname = "v", level = 1), lakes$Khamra$buffer)
+  u <- raster::crop(brick(x, varname=  "u", level = 1), i)
+  v <- raster::crop(brick(x, varname = "v", level = 1), i)
   
   dir <- atan2(u, v)*(180/pi)
   dir[] <- ifelse(dir[]<0, 360+dir[], dir[])
@@ -62,7 +75,7 @@ rasterList <- lapply(unique(subTab$path), function(x) {
   
   list <- list(dir, spd)
 })
-
+#
 
 # Creating a brick for wind direction and speed 
 dirBrick <- brick(lapply(rasterList, function(x) x[[1]]))
@@ -80,11 +93,9 @@ brick_coord <- coordinates(data_brick)
 brick_coord[,1] <- ifelse(brick_coord[,1]>180,NA, brick_coord[,1])
 arrow <- data.frame(brick_coord, geosphere::destPoint(brick_coord, data_brick[[2]], data_brick[[1]]*60*60*7))
 
-
-
 ggplot() +  
     geom_tile(data = data_spd, aes(x = x, y = y, fill = value), alpha = 0.8) + 
-    geom_sf(data = lakes$Khamra$lake, mapping = aes(colours = "white", size = 10), show.legend = F)+
+    geom_sf(data = lakes$Ill$lake, mapping = aes(colours = "white", size = 10), show.legend = F)+
     scale_fill_gradientn(colours = rev(viridis::plasma(99)),
                        breaks = round(seq(min(medSpd[]), max(medSpd[]), length = 5), 0))+
     geom_segment(data = subset(arrow, lon>0), aes(x = x, xend = lon, y = y, yend = lat),
@@ -105,16 +116,31 @@ lines <- lapply(rows, function(row) {
 lines <- st_sfc(lines)
 lines_sf <- st_sf('geometry' = lines)
 lines_CRS <- st_set_crs(lines_sf, "+proj=longlat +datum=WGS84") %>% st_geometry()
+
+
+# Lake Khamra
 Khamra_lake <- st_set_crs(lakes$Khamra$lake, "+proj=longlat +datum=WGS84") %>% st_geometry()
-plot(lines_CRS)
-
-plot(Khamra_lake) 
-plot(lines_CRS, add = T)
-
-intersect_l_p <- st_intersection(x = Khamra_lake, y = lines_CRS)
+Khamra_buffer <- st_set_crs(lakes$Khamra$buffer, "+proj=longlat +datum=WGS84") %>% st_geometry()
+intersect_Kham <- st_intersection(x = Khamra_lake, y = lines_CRS)
 jpeg("Results/Khamra_dir.jpeg")
 plot(Khamra_lake)
-plot(intersect_l_p, add = T)
+plot(intersect_Kham, add = T)
+dev.off()
+
+# Lake Elgy
+Ely_lake <- Ely_lake <- st_set_crs(lakes$Elgy$lake, "+proj=longlat +datum=WGS84") %>% st_geometry()
+intersect_Ely <- st_intersection(x = Ely_lake, y = lines_CRS)
+jpeg("Results/Ely_dir.jpeg")
+plot(Ely_lake)
+plot(intersect_Ely, add = T)
+dev.off()
+
+# Lake Ill
+Ill_lake <- st_set_crs(lakes$Ill$lake, "+proj=longlat +datum=WGS84") %>% st_geometry()
+intersect_Ill <- st_intersection(x = Ill_lake, y = lines_CRS)
+jpeg("Results/Ill_dir.jpeg")
+plot(Ill_lake)
+plot(intersect_Ill, add = T)
 dev.off()
 
 
