@@ -108,18 +108,14 @@ lines_CRS <- st_set_crs(lines_sf, "+proj=longlat +datum=WGS84") %>% st_geometry(
 Khamra_lake <- st_set_crs(lakes$Khamra$lake, "+proj=longlat +datum=WGS84") %>% st_geometry()
 plot(lines_CRS)
 
-plot(lakes$Khamra$lake) 
+plot(Khamra_lake) 
 plot(lines_CRS, add = T)
 
-intersect <- st_intersects(x = lakes$Khamra$lake, y = lines_sf)
-plot(intersect)
-
-
-
-
-plot(intersect$geometry)
-
-gIntersection(spgeom1 = lakes$Khamra$lake, spgeom2 = lines_sf)
+intersect_l_p <- st_intersection(x = Khamra_lake, y = lines_CRS)
+jpeg("Results/Khamra_dir.jpeg")
+plot(Khamra_lake)
+plot(intersect_l_p, add = T)
+dev.off()
 
 
 
