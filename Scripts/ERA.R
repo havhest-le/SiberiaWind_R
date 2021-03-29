@@ -61,9 +61,9 @@ cat(glue("\rWir befinden uns im Jahre {y} nach Christus. Ganz Gallien ist nicht 
 subTab <- subset(fls_Tab, as.numeric(format(date, "%Y")) %in% y &
                           as.numeric(format(date, "%m")) %in% c(6:8))
 
-# Creating a list for every date with wind direction and speed
+# Creating a list for every date with wind direction and speed 
 # for (i in buffer) {
-#   
+# How can I create a for loop or function for every single buffer??? It's all in lists (I don't like lists......)
 rasterList <- lapply(unique(subTab$path), function(x) {
   
   u <- raster::crop(brick(x, varname=  "u", level = 1), i)
