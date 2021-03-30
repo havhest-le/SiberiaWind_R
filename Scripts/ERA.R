@@ -153,7 +153,7 @@ extr_Tab <- data.frame(loc = rep(data_coord$location, ncol(extr_dir)), # f?r jed
                        dir = c(extr_dir), spd = c(extr_spd)) 
 
 head(extr_Tab)
-i = Illirney 
+i = "Illirney" 
 plts <- lapply(data_coord$location, function(i) {
   c_sub <- subset(extr_Tab, extr_Tab$loc == i) # bei i wird auf data_coord zugriffen!!! 
   breaks <- seq(0, 360, 10)
@@ -175,6 +175,7 @@ plts <- lapply(data_coord$location, function(i) {
     theme(axis.text.x = element_text(size = 14, face = 'bold'))
 })
 
+print(plts)
 
 figure_2 <- ggarrange(plts[[6]],plts[[5]],plts[[3]],plts[[1]],plts[[2]],plts[[4]],
                       labels = c("Satagay 2.0","Malaya Chabyda","Rauchagytgyn","Khamra","Illirney","Elgygytgyn"), 
