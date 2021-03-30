@@ -123,7 +123,7 @@ for(y in 1979:1983) {
   
     # 6 st_intersect    
     
-    intersect <- st_intersection(x = a, y = sf_lines, sparse = TRUE)
+    intersect <- st_intersects(x = a, y = sf_lines, sparse = TRUE)
     plot(intersect)
     
     # 7 data.table(lonOrigin, latOrigin, date, lake)
