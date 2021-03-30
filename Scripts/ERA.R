@@ -25,6 +25,7 @@ library(cowplot)
 library(ggthemes)
 library(ggplot2)
 library(ggnewscale)
+library(RCurl)
 
 data_coord <- data.frame(location = c("Khamra","Illirney","Rauchagytgyn", "Elgygytgyn"),
                          lon = c(112.98, 167.57, 168.71, 172.15), lat = c(59.99, 67.15, 67.80, 67.58))
@@ -33,13 +34,6 @@ ext     <- extent(c(103.82, 180, 50.07, 80.56))
 load("Results/lakes.RData")
 lakes
 
-lake <- data.frame(lakes$Elgy$lake, lakes$Khamra$lake, lakes$Ill$lake) %>%
-  select("geometry", "geometry.1", "geometry.2")
-colnames(lake) <- c("Ely", "Kham", "Ill")
-
-buffer <- data.frame(lakes$Elgy$buffer, lakes$Khamra$buffer, lakes$Ill$buffer) %>%
-  select("geometry", "geometry.1", "geometry.2")
-colnames(buffer) <- c("Ely_buf", "Kham_buf", "Ill_buf")
 
 ####
 # Input data ####
@@ -56,32 +50,96 @@ fls_Tab <- do.call("rbind", lapply(files, function(x) {
 }))
 
 
-y = 1987
-cat(glue("\rWir befinden uns im Jahre {y} nach Christus. Ganz Gallien ist nicht mehr von den R?mern besetzt."))
-subTab <- subset(fls_Tab, as.numeric(format(date, "%Y")) %in% y &
-                          as.numeric(format(date, "%m")) %in% c(6:8))
+for(y in 1979:1983) {
+  
+  # y <- 1982
+  cat(glue("\rWir befinden uns im Jahre {y} nach Christus. Ganz Gallien ist nicht mehr von den R?mern besetzt."))
+  
+  subTab <- subset(fls_Tab, as.numeric(format(date, "%Y")) %in% y &
+                     as.numeric(format(date, "%m")) %in% c(6)) #### !!!!! only one month for test
+   
+  # Creating a list for every level
+  rasterList <- lapply(unique(subTab$path), function(x) {
+    
+    # x <- unique(subTab$path)[[1]]
+    
+    levelList <- lapply(1:7, function(level) {
+      # level = 1
+      u <- raster::crop(brick(x, varname=  "u", level = level), ext)
+      v <- raster::crop(brick(x, varname = "v", level = level), ext)
+      
+      dir <- atan2(u, v)*(180/pi)
+      dir[] <- ifelse(dir[]<0, 360+dir[], dir[])
+      spd <- sqrt((u^2)+(v^2))
+      
+      list(dir, spd)
+    })
+    
 
-# Creating a list for every date with wind direction and speed 
-# for (i in buffer) {
-# How can I create a for loop or function for every single buffer??? It's all in lists (I don't like lists......)
-rasterList <- lapply(unique(subTab$path), function(x) {
+    lapply(1:nlayers(levelList[[1]][[1]]), function(dts) {
+      
+      levTmp <- lapply(1:7, function(level) {
+        list(levelList[[level]][[1]][[dts]],
+             levelList[[level]][[2]][[dts]])
+      })
+     dirDate <- calc(do.call("brick", lapply(levTmp, function(y) y[[1]])), median, na.rm = T)
+     spdDate <- calc(do.call("brick", lapply(levTmp, function(y) y[[2]])), median, na.rm = T)
+     
+     list(dirDate, spdDate)
+    })
+    
+  })
   
-  u <- raster::crop(brick(x, varname=  "u", level = 1), lakes$Ill$buffer)
-  v <- raster::crop(brick(x, varname = "v", level = 1), lakes$Ill$buffer)
+  # Creating a brick for wind direction and speed 
+  dirBrick <- brick(lapply(rasterList, function(x) brick(lapply(x, function(y) y[[1]]))))
+  spdBrick <- brick(lapply(rasterList, function(x) brick(lapply(x, function(y) y[[2]]))))
   
-  dir <- atan2(u, v)*(180/pi)
-  dir[] <- ifelse(dir[]<0, 360+dir[], dir[])
-  spd <- sqrt((u^2)+(v^2))
+  crdsTab <- do.call("rbind", lapply(1:nlayers(dirBrick), function(z) {
+    
+    # 1 get layers
+    spd <- spdBrick[[z]]
+    dir <- dirBrick[[z]]
+    
+    # 2 get wind arrows
+    windLines <- cbind(coordinates(spd), geosphere::destPoint(coordinates(spd), dir[], spd[]*60*60*7))
+    plot(windLines)
   
-  list <- list(dir, spd)
-})
-#
+    # 3 get st_lines
+    sf_lines <- st_sfc(lapply(1:nrow(windLines), function(l) st_linestring(matrix(windLines[l,], ncol = 2, byrow = T))), crs = 4326) %>%
+                  st_geometry()
+    plot(sf_lines)
+  
+    
+    # (4) make buffer around each line
+    
+    # 5 merge lakes
+    
+    Ely <-  lakes$Elgy$lake$geometry
+    Kham <- lakes$Khamra$lake$geometry
+    Ill <- lakes$Ill$lake$geometry
+    data <- rbind(Ely, Kham, Ill)
+    multi_lake <- st_multipolygon(a)
+    plot(multi_lake, col = "red", add = TRUE)
+  
+    # 6 st_intersect    
+    
+    intersect <- st_intersection(x = a, y = sf_lines, sparse = TRUE)
+    plot(intersect)
+    
+    # 7 data.table(lonOrigin, latOrigin, date, lake)
+    
+  }))
+    
+  
+  crdsTab
+  
+  
+}
 
-# Creating a brick for wind direction and speed 
-dirBrick <- brick(lapply(rasterList, function(x) x[[1]]))
-spdBrick <- brick(lapply(rasterList, function(x) x[[2]]))
-medSpd <- calc(spdBrick, median)
-medDir <- calc(dirBrick, median)
+### rasterize output
+
+
+
 
 
 data_map <- as(medSpd, "SpatialPixelsDataFrame")
