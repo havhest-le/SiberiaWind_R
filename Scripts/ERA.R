@@ -35,6 +35,8 @@ load("Results/lakes.RData")
 lakes
 load("Results/lakes_roh.RData")
 lakes_roh
+load("Results/buffer.RData")
+buffer
 
 
 ####
@@ -118,23 +120,24 @@ for(y in 1979:1983) {
     # (4) make buffer around each line
     
     # 5 merge lakes
-    
-    lakes_roh
-    plot(lakes_roh)
+    list <- list(buffer, lakes_roh)
   
     # 6 st_intersect    
     # st_intersects doesn't work
     
-    for(i in lakes_roh){
+    for(i in list[[1]]){
       inters <- st_intersection(i, sf_lines)
-      plot(i, col = "lightblue")
-      plot(inters, add = TRUE)
-    }
+      plot(i, col = "grey")
+       for(j in list[[2]]) {
+        plot(j, col = "lightblue")
+        plot(i, add = TRUE)
+        plot(inters, add = TRUE)
+      } }
+
   
-    
-    # 7 data.table(lonOrigin, latOrigin, date, lake)
-    
-    
+    # 7 data.table(lonOrigin, latOrigin, date, lakee
+    # how can I select lon and lat of LINESTRING in "inters"?
+        tab <- data.frame(lon = inters[1], lat = inters[2], lake = list[[2]])
     
     
   }))
