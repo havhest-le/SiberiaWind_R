@@ -26,12 +26,11 @@ mapCrop <- map %>%
 
 # Elgygytgen
 Elgy <- read_sf("Data/Lakes/Elgygytgen/Lake_area.shp") %>% st_transform(4326)
-proj <- glue("+proj=laea +lon_0={st_coordinates(st_centroid(Elgy))[,1]} +lat_0={st_coordinates(st_centroid(Elgy))[,2]}") # Ely is the central point
-El_buf <- st_transform(Elgy, crs = CRS(proj)) %>%
+proj <- glue("+proj=laea +lon_0={st_coordinates(st_centroid(Elgy))[,1]} +lat_0={st_coordinates(st_centroid(Elgy))[,2]}")
+Elgy_buf <- st_transform(Elgy, crs = CRS(proj)) %>%
   st_buffer(400000) %>% st_transform(4326)
-plot(mapCrop)
-plot(Elgy$geometry, col = "blue", add = T)
-plot(El_buf$geometry, add = T)
+plot(Elgy$geometry, col = "blue")
+plot(Elgy_buffer$geometry, add = T)
 
 
 # Khamra
@@ -51,8 +50,19 @@ Ill_buf <- st_transform(Ill, crs = CRS(proj)) %>%
 plot(Ill$geometry, col = "blue", add = T)
 plot(Ill_buf$geometry, add = T)
 
-lakes <- list(Elgy = list(lake = Elgy, buffer = El_buf)
-              Khamra = ())
+
+lakes_names <- c("Elgygytgen", "Khamra", "Illerney")
+lakes <- data.frame(Elgy, Khamra, Ill, )
+buffer <- c(El_buf, Kha_buf, Ill_buf)
+
+
+
+
+lakes <- list(Elgy = list(lake = Elgy, buffer = El_buf),
+              Khamra = list(lake = Khamra, buffer = Kha_buf),
+              Ill = list(lake = Ill, buffer = Ill_buf))
+
+lakes_roh <-  list(Elgy = Elgy$geometry, Khamra =  Khamra$geometry, Ill =  Ill$geometry) 
 
 save(lakes, file = "Results/lakes.RData")
-
+save(lakes_roh, file = "Results/lakes_roh.RData")
