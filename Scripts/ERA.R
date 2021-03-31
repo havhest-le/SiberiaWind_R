@@ -33,6 +33,8 @@ map     <- rnaturalearth::ne_coastline(scale = 50, returnclass = "sf")
 ext     <- extent(c(103.82, 180, 50.07, 80.56))
 load("Results/lakes.RData")
 lakes
+load("Results/lakes_roh.RData")
+lakes_roh
 
 
 ####
@@ -101,15 +103,15 @@ for(y in 1979:1983) {
     dir <- dirBrick[[z]]
     
     # 2 get wind arrows
-    # spd <- ifelse(coordinates(spd)>180,NA, coordinates(spd))
     windLines <- cbind(coordinates(spd), geosphere::destPoint(coordinates(spd), dir[], spd[]*60*60*7))
     head(windLines)
     plot(windLines)
     
     
     # 3 get st_lines
-    sf_lines <- st_sfc(lapply(1:nrow(windLines), function(l) st_linestring(matrix(windLines[l,], ncol = 2, byrow = T))), crs = 4326) %>%
+    sf_lines <- st_sfc(lapply(1:nrow(windLines), function(l) st_linestring(matrix(windLines[l,], ncol = 2, byrow = TRUE))), crs = 4326) %>%
                   st_geometry()
+    head(sf_lines)
     plot(sf_lines)
   
     
@@ -117,19 +119,23 @@ for(y in 1979:1983) {
     
     # 5 merge lakes
     
-    Ely <-  lakes$Elgy$lake$geometry
-    Kham <- lakes$Khamra$lake$geometry
-    Ill <- lakes$Ill$lake$geometry
-    data <- rbind(Ely, Kham, Ill)
-    multi_lake <- st_multipolygon(data)
-    plot(multi_lake)
+    lakes_roh
+    plot(lakes_roh)
   
     # 6 st_intersect    
+    # st_intersects doesn't work
     
-    intersect <- st_intersects(x = a, y = sf_lines, sparse = TRUE)
-    plot(intersect)
+    for(i in lakes_roh){
+      inters <- st_intersection(i, sf_lines)
+      plot(i, col = "lightblue")
+      plot(inters, add = TRUE)
+    }
+  
     
     # 7 data.table(lonOrigin, latOrigin, date, lake)
+    
+    
+    
     
   }))
     
@@ -177,7 +183,7 @@ lines <- lapply(rows, function(row) {
 lines <- st_sfc(lines)
 lines_sf <- st_sf('geometry' = lines)
 lines_CRS <- st_set_crs(lines_sf, "+proj=longlat +datum=WGS84") %>% st_geometry()
-
+head(lines_CRS)
 
 # Lake Khamra
 Khamra_lake <- st_set_crs(lakes$Khamra$lake, "+proj=longlat +datum=WGS84") %>% st_geometry()
