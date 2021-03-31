@@ -101,9 +101,12 @@ for(y in 1979:1983) {
     dir <- dirBrick[[z]]
     
     # 2 get wind arrows
+    # spd <- ifelse(coordinates(spd)>180,NA, coordinates(spd))
     windLines <- cbind(coordinates(spd), geosphere::destPoint(coordinates(spd), dir[], spd[]*60*60*7))
+    head(windLines)
     plot(windLines)
-  
+    
+    
     # 3 get st_lines
     sf_lines <- st_sfc(lapply(1:nrow(windLines), function(l) st_linestring(matrix(windLines[l,], ncol = 2, byrow = T))), crs = 4326) %>%
                   st_geometry()
@@ -118,8 +121,8 @@ for(y in 1979:1983) {
     Kham <- lakes$Khamra$lake$geometry
     Ill <- lakes$Ill$lake$geometry
     data <- rbind(Ely, Kham, Ill)
-    multi_lake <- st_multipolygon(a)
-    plot(multi_lake, col = "red", add = TRUE)
+    multi_lake <- st_multipolygon(data)
+    plot(multi_lake)
   
     # 6 st_intersect    
     
