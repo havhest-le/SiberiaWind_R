@@ -66,3 +66,11 @@ lakes_roh <-  list(Elgy = Elgy$geometry, Khamra =  Khamra$geometry, Ill =  Ill$g
 
 save(lakes, file = "Results/lakes.RData")
 save(lakes_roh, file = "Results/lakes_roh.RData")
+
+
+### Shapefile lakes
+
+lakes_sf <- do.call("rbind", lapply(1:3, function(x) 
+  data.frame(st_coordinates(lakes[[x]][[1]])[,1:2], lake = names(lakes)[x]))) %>%
+  st_as_sf(coords = c("X", "Y"), dim = c("XY")) %>% st_set_crs(st_crs(lakes[[1]][[1]])) %>%
+  group_by(lake) %>% summarise(do_union = F) %>% st_cast("POLYGON")
