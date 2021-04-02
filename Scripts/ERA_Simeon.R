@@ -42,7 +42,6 @@ fls_Tab <- do.call("rbind", lapply(files, function(x) {
 
 for(y in 1979:1983) {
   
-  # y <- 1982
   cat(glue("\ryear {y}"))
   
   subTab <- subset(fls_Tab, as.numeric(format(date, "%Y")) %in% y &
@@ -122,10 +121,9 @@ for(y in 1979:1983) {
       y = "lat",
       linestring_id = "id"
     ) %>% st_set_crs(proj)
+
     
-    
-    
-    # intersect
+    ### intersect
     out <- do.call("rbind", lapply(seq(0, 5000, 500), function(d) {
       inters <- st_intersects(lks %>% st_buffer(d), tracks_sf, sparse = F)
       # plot(lks[1,] %>% st_buffer(550000) %>% st_geometry())
