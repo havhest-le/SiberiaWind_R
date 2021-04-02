@@ -40,12 +40,14 @@ fls_Tab <- do.call("rbind", lapply(files, function(x) {
 }))
 
 
-for(y in 1979:1983) {
+for(y in 1979:2020) {
   
-  cat(glue("\ryear {y}"))
+  for(m in 4:8) {
+  
+  cat(glue("\ryear {y} month {m}"))
   
   subTab <- subset(fls_Tab, as.numeric(format(date, "%Y")) %in% y &
-                     as.numeric(format(date, "%m")) %in% c(6))
+                     as.numeric(format(date, "%m")) %in% m)
    
   # Creating a list for every level
   rasterList <- lapply(unique(subTab$path), function(x) {
@@ -144,6 +146,9 @@ for(y in 1979:1983) {
   if(file.exists("~/Documents/crdsTab.csv")) {
     write.csv(crdsTab, "~/Documents/crdsTab.csv")
   } else write.csv(crdsTab, "~/Documents/crdsTab.csv", append = TRUE)
+  
+  }
+  
 }
 
 ### output plot
