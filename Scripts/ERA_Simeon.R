@@ -42,7 +42,7 @@ fls_Tab <- do.call("rbind", lapply(files, function(x) {
 
 for(y in 1979:2020) {
   
-  for(m in 1:12) {
+  for(m in 5:8) {
   
   cat(glue("\ryear {y} month {m}"))
     
@@ -87,7 +87,7 @@ for(y in 1979:2020) {
   # points(trackPts, pch = 16, cex = 0.2)
   # plot(map %>% st_transform(proj), add = T)
   
-  crdsTab <- do.call("rbind", lapply(1:nlayers(uBrick), function(z) {
+  crdsTab <- do.call("rbind", parallel::mclapply(1:nlayers(uBrick), function(z) {
 
     wBrick <- projectRaster(brick(uBrick[[z]], vBrick[[z]]), crs = CRS(proj))
     
@@ -132,11 +132,11 @@ for(y in 1979:2020) {
     
     out[!duplicated(glue("{out[,1]}_{out[,2]}_{out[,3]}")),]
     
-  }))
+  }, mc.cores = 4))
   
-  if(file.exists("~/Documents/crdsTab.csv")) {
-    write.csv(crdsTab, "~/Documents/crdsTab.csv")
-  } else write.csv(crdsTab, "~/Documents/crdsTab.csv", append = TRUE)
+  if(file.exists("/Volumes/potsdam-1/data/bioing/user/slisovsk/crdsTab.csv")) {
+    write.table(crdsTab, "/Volumes/potsdam-1/data/bioing/user/slisovsk/crdsTab.csv", sep = ",")
+  } else write.table(crdsTab, "/Volumes/potsdam-1/data/bioing/user/slisovsk/crdsTab.csv", sep = ",", col.names = F, append = TRUE)
   
   }
   
