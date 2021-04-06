@@ -45,7 +45,7 @@ for(y in 1979:2020) {
   for(m in 4:8) {
   
   cat(glue("\ryear {y} month {m}"))
-  
+    
   subTab <- subset(fls_Tab, as.numeric(format(date, "%Y")) %in% y &
                      as.numeric(format(date, "%m")) %in% m)
    
@@ -134,8 +134,10 @@ for(y in 1979:2020) {
       # plot(lks[1,] %>% st_buffer(d), add = T)
       # points(outTmp[,c("X", "Y")], pch = 21)
       do.call("rbind", lapply(1:nrow(inters), function(x) {
+        if(sum(inters[x,])>0) {
         outTmp <- project(as.matrix(data.table(st_coordinates(tracks_sf[inters[x,],]))[, head(.SD,1), by = "L1"][,c("X", "Y")]), proj, inv = T)
         if(nrow(outTmp)>0) data.frame(lake = lakes$lake[x], date = subTab$date[z], lon = outTmp[,1], lat = outTmp[,2], buffer = d)
+        } else NULL
       }))
     }))
     
