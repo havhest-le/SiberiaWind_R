@@ -14,8 +14,8 @@ library(glue)
 
 data_coord <- data.frame(location = c("Khamra","Illirney","Rauchagytgyn", "Elgygytgyn"),
                          lon = c(112.98, 167.57, 168.71, 172.15), lat = c(59.99, 67.15, 67.80, 67.58))
-map     <- rnaturalearth::ne_coastline(scale = 50, returnclass = "sf")
-ext     <- extent(c(103.82, 180, 50.07, 80.56))
+map     <- read_sf("Data/ne_50m_land/ne_50m_land.shp") %>% st_geometry()
+ext     <- extent(c(95, 200, 50, 80))
 
 ## I created a simple sf polygon collection with the lakes
 ## We will create the buffer later
@@ -26,7 +26,7 @@ lakes   <- read_sf("Data/lakesSHP/lakes_sf.shp")
 ####
 
 # for Linux4 Server
-files <- list.files(path = "/Volumes/potsdam/data/bioing/data/Data_Reanalyse/ERA5/Wind_u_v_pressureLevels", pattern = "*.nc", all.files = T, full.names = T)
+files <- list.files(path = "/Volumes/potsdam-1/data/bioing/data/Data_Reanalyse/ERA5/Wind_u_v_pressureLevels", pattern = "*.nc", all.files = T, full.names = T)
 
 # for vivis pc
 # files <- list.files(path = "Z:/data/bioing/data/Data_Reanalyse/ERA5/Wind_u_v_pressureLevels", pattern = "*.nc", all.files = T, full.names = T)
@@ -42,7 +42,7 @@ fls_Tab <- do.call("rbind", lapply(files, function(x) {
 
 for(y in 1979:2020) {
   
-  for(m in 4:8) {
+  for(m in 1:12) {
   
   cat(glue("\ryear {y} month {m}"))
     
@@ -50,56 +50,48 @@ for(y in 1979:2020) {
                      as.numeric(format(date, "%m")) %in% m)
    
   # Creating a list for every level
-  rasterList <- lapply(unique(subTab$path), function(x) {
-    
-    # x <- unique(subTab$path)[[1]]
-    
-    levelList <- lapply(1:7, function(level) {
-      u <- raster::crop(brick(as.character(x), varname=  "u", level = level), ext)
-      v <- raster::crop(brick(as.character(x), varname = "v", level = level), ext)
-      list(u, v)
-    })
+  levelList <- parallel::mclapply(1:7, function(level) {
+      u <- raster::crop(brick(as.character(unique(subTab$path)), varname=  "u", level = level), ext)
+      v <- raster::crop(brick(as.character(unique(subTab$path)), varname = "v", level = level), ext)
+      list(u, v) }, mc.cores = 7)
     
 
-    lapply(1:nlayers(levelList[[1]][[1]]), function(dts) {
-      
+   rasterList <- parallel::mclapply(1:nlayers(levelList[[1]][[1]]), function(dts) {
       levTmp <- lapply(1:7, function(level) {
         list(levelList[[level]][[1]][[dts]],
              levelList[[level]][[2]][[dts]])
       })
-      
      uDate <- calc(do.call("brick", lapply(levTmp, function(y) y[[1]])), median, na.rm = T)
      vDate <- calc(do.call("brick", lapply(levTmp, function(y) y[[2]])), median, na.rm = T)
-     
      list(uDate, vDate)
-    })
+   }, mc.cores = 4)
     
-  })
-  # save(rasterList, file = "~/Documents/subsave.RData")
-  
+
   # Creating a brick for wind direction and speed 
-  uBrick <- brick(lapply(rasterList, function(x) brick(lapply(x, function(y) y[[1]]))))
-  vBrick <- brick(lapply(rasterList, function(x) brick(lapply(x, function(y) y[[2]]))))
+  uBrick <- rotate(brick(lapply(rasterList, function(x) x[[1]])))
+  vBrick <- rotate(brick(lapply(rasterList, function(x) x[[2]])))
   
   proj   <- glue("+proj=laea +lon_0={mean(ext[1:2])} +lat_0={mean(ext[3:4])}")
   crds   <- data.frame(coordinates(uBrick))
-  pts    <- st_as_sf(crds, coords = c("x", "y"), crs = 4236) %>% st_transform(proj)
+  pts    <- st_as_sf(crds, coords = c("x", "y"), crs = 4326) %>% st_transform(proj)
   lks    <- lakes %>% st_transform(proj)
   lkb    <- lks %>% st_buffer(700000)
-  ind    <- apply(st_intersects(pts, lkb, sparse = F), 1, any)
+  ind    <- apply(st_intersects(pts, lkb, sparse = F), 1, any) & apply(st_intersects(pts, map %>% st_transform(proj), sparse = F), 1, any)
   
   trackPts <- st_coordinates(pts)[ind,]
   endPts   <- crds[ind,]
   
-  # plot(projectRaster(uBrick[[1]], crs = CRS(proj)))
+  # plot(map %>% st_transform(proj) %>% st_buffer(0) %>% st_crop(extent(c(apply(trackPts, 2, function(x) c(min(x), max(x)))))), border = NA)
+  # plot(mask(projectRaster(uBrick[[1]], crs = CRS(proj)), as(map %>% st_transform(proj), "Spatial")), add = T, legend = F)
   # plot(lakes %>% st_transform(proj), add = T)
   # points(trackPts, pch = 16, cex = 0.2)
+  # plot(map %>% st_transform(proj), add = T)
   
   crdsTab <- do.call("rbind", lapply(1:nlayers(uBrick), function(z) {
 
     wBrick <- projectRaster(brick(uBrick[[z]], vBrick[[z]]), crs = CRS(proj))
     
-    for(i in 1:24) {
+    for(i in 1:12) {
       if(i==1) {
         extrWnd <- raster::extract(wBrick, trackPts)
         windTab <- data.table(tm = i, id = 1:nrow(trackPts), lon = trackPts[,1], lat = trackPts[,2], 
@@ -113,9 +105,6 @@ for(y in 1979:2020) {
     }
     
     windTab <- windTab[windTab$id%in%which(sapply(unique(windTab$id), function(p) sum(windTab$id==p))>2),]
-    
-    # plot(projectRaster(uBrick[[1]], crs = CRS(proj)))
-    # with(windTab[windTab$id==1,], lines(lon, lat))
     
     tracks_sf <- sfheaders::sf_linestring(
       obj = windTab[!is.na(windTab$lon),c("lon", "lat", "id")][order(windTab$id),],
@@ -154,9 +143,10 @@ for(y in 1979:2020) {
 }
 
 ### output plot
-plot(uBrick[[1]])
-points(crdsTab[,c("lon", "lat")], pch = 16, cex = 0.4)
-plot(lakes$geometry, lwd = 13, add = T, col = "red")
+# plot(sqrt(uBrick[[1]]^2 + vBrick[[1]]^2))
+# points(crdsTab[,c("lon", "lat")], pch = 16, cex = 0.4)
+# plot(lakes$geometry, lwd = 13, add = T, col = "red")
+
 
 ## test
 # r0 <- raster(extent(as(lakes[1,] %>% st_transform(proj) %>% st_buffer(310000) %>% st_transform(4326), "Spatial")),
