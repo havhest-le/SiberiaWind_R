@@ -13,13 +13,15 @@ library(data.table)
 library(glue)
 library(interp)
 library(contourPlot)
+library(gridExtra)
+library(ggpubr)
 
 
 #####
 # Input data
 #####
 
-data_tab <- read.csv(file = "N:/bioing/user/slisovsk/crdsTab.csv", header = T, col.names=c("lake","date", "lon", "lat", "buffer"))
+data_tab <- read.csv(file = "N:/bioing/user/slisovsk/crdsTab.csv", header = T, row.names = NULL) #col.names=c("lake","date", "lon", "lat", "buffer"))
 head(data_tab)
 lakes   <- read_sf("Data/lakesSHP/lakes_sf.shp") 
 data_raster <- raster()
@@ -65,11 +67,13 @@ Elgy_plot <- ggplot(data_El, aes(x = lon, y = lat)) +
   geom_raster(aes(fill = count)) + 
   geom_contour(aes(z = count), colour = "black", size = 0.5, alpha = 0.5) +
   #geom_point(data = lakes[1,]) +
-  labs(x = NULL, y = NULL) + 
   scale_fill_gradientn(colours = rev(viridis::cividis(1000)),
                        limits=c(minValue(raster_El),maxValue(raster_El))) +
   scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0)) +
-  theme_minimal()
+  theme_minimal()+
+  labs(x = NULL, y = NULL)+
+  theme(legend.title = element_text(size = 16, vjust = 0.5),
+        legend.text = element_text(size = 12, vjust = 0.75))
 print(Elgy_plot)
 
 
@@ -91,7 +95,9 @@ Kha_plot  <- ggplot(data = data_Kha,aes(lon, lat)) +
   scale_fill_gradientn(colours = rev(viridis::cividis(1000)),
                        limits=c(minValue(raster_Kham),maxValue(raster_Kham)) +
                          scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0)))+
-  theme_minimal()
+  theme_minimal()+
+  theme(legend.title = element_text(size = 16, vjust = 0.5),
+        legend.text = element_text(size = 12, vjust = 0.75))
 print(Kha_plot)
 
 
@@ -110,12 +116,19 @@ Ill_plot  <- ggplot(data = data_Ill, aes(lon, lat)) +
   geom_raster(aes(fill = count)) + 
   geom_contour(aes(z = count), colour = "black", size = 0.5, alpha = 0.5) +
   #geom_sf(data = lakes[3,])+
-  coord_sf() + 
   labs(x = NULL, y = NULL) + 
   scale_fill_gradientn(colours = rev(viridis::cividis(1000)),
                        limits=c(minValue(raster_Ill),maxValue(raster_Ill)) +
                          scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0)))+
-  theme_minimal()
+  theme_minimal()+
+  theme(legend.title = element_text(size = 16, vjust = 0.5),
+        legend.text = element_text(size = 12, vjust = 0.75))
 print(Ill_plot)
 
+
+
+png(glue("Results/windfields.png"), width = 2500, height = 1000)
+g <- grid.arrange(Elgy_plot, Kha_plot, Ill_plot, nrow = 1, ncol = 3)
+print(annotate_figure(g, top = text_grob(glue("Wind direction and speed in East Siberia"),vjust = 0.8, hjust = 0.5, face = "bold", size = 30)))
+dev.off()
 

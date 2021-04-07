@@ -31,3 +31,5 @@ MODIS_ext <- MODIS %>%
   filter(LONGITUDE >=103.82 & LONGITUDE <= 180 & LATITUDE >= 50.07  & LATITUDE <= 80.56 & FRP > 0)
 head(MODIS_ext)
 
+MODIS <- data.table(MODIS_ext)
+save(MODIS, file = "Results/MODIS.RData")
