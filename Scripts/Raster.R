@@ -55,8 +55,12 @@ Ill <- data_tab  %>%
 
 
 # Ell
-raster_data_el <- raster(nrows = 1000000, ncols = 1000000, xmn = min(Elgy$lon), xmx = max(Elgy$lon), ymn = min(Elgy$lat), ymx = max(Elgy$lat), res = .25,
-                      crs = 4326)
+raster_data_el <- raster(xmn = min(Elgy$lon[Elgy$lon > 0]), 
+                         xmx = ifelse(any(Elgy$lon < 0), 180+(180+min(Elgy$lon)), min(Elgy$lon)), 
+                         ymn = min(Elgy$lat), ymx = max(Elgy$lat), res = .25,
+                         crs = 4326)
+
+
 raster_El <- rasterize(Elgy[,c("lon", "lat")], raster_data_el, fun = 'count')
 plot(raster_El)
 p_El <- rasterToPoints(raster_El)
@@ -71,15 +75,18 @@ Elgy_plot <- ggplot(data_El, aes(x = lon, y = lat)) +
                        limits=c(minValue(raster_El),maxValue(raster_El))) +
   scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0)) +
   theme_minimal()+
+  labs(subtitle = "Elgygytgyn")+
   labs(x = NULL, y = NULL)+
-  theme(legend.title = element_text(size = 16, vjust = 0.5),
+  theme(plot.subtitle = element_text(size = 16, hjust = 0.5),
+        legend.title = element_text(size = 16, vjust = 0.5),
         legend.text = element_text(size = 12, vjust = 0.75))
 print(Elgy_plot)
 
 
 # Khamra
-raster_data_kha <- raster(nrows = 1000000, ncols = 1000000, xmn = min(Kham$lon), xmx = max(Kham$lon), ymn = min(Kham$lat), ymx = max(Kham$lat), res = .25,
-                      crs = 4326)
+raster_data_kha <- raster(xmn = min(Kham$lon), xmx = max(Kham$lon), 
+                          ymn = min(Kham$lat), ymx = max(Kham$lat), res = .25,
+                          crs = 4326)
 raster_Kham <- rasterize(Kham[,c("lon", "lat")], raster_data_kha, fun = 'count')
 plot(raster_Kham)
 plot(lakes[2,], add = TRUE)
@@ -92,19 +99,27 @@ Kha_plot  <- ggplot(data = data_Kha,aes(lon, lat)) +
   geom_contour(aes(z = count), colour = "black", size = 0.5, alpha = 0.5) +
   #geom_sf(data = lakes[2,])+
   labs(x = NULL, y = NULL) + 
+  labs(subtitle = "Khamra")+
   scale_fill_gradientn(colours = rev(viridis::cividis(1000)),
                        limits=c(minValue(raster_Kham),maxValue(raster_Kham)) +
                          scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0)))+
   theme_minimal()+
-  theme(legend.title = element_text(size = 16, vjust = 0.5),
+  theme(plot.subtitle = element_text(size = 16, hjust = 0.5),
+        legend.title = element_text(size = 16, vjust = 0.5),
         legend.text = element_text(size = 12, vjust = 0.75))
 print(Kha_plot)
 
 
 
 # Ill
-raster_data_Ill <- raster(nrows = 1000000, ncols = 1000000, xmn = min(Ill$lon), xmx = max(Ill$lon), ymn = min(Ill$lat), ymx = max(Ill$lat), res = .25,
+raster_data_Ill <- raster(xmn = min(Ill$lon[Ill$lon > 0]), 
+                          xmx = ifelse(any(Ill$lon < 0), 180+(180+min(Ill$lon)), min(Ill$lon)), 
+                          ymn = min(Ill$lat), ymx = max(Ill$lat), res = .25,
                           crs = 4326)
+
+
+
+
 raster_Ill <- rasterize(Ill[,c("lon", "lat")], raster_data_Ill, fun = 'count')
 plot(raster_Ill)
 plot(lakes[3,], add = TRUE) 
@@ -116,12 +131,14 @@ Ill_plot  <- ggplot(data = data_Ill, aes(lon, lat)) +
   geom_raster(aes(fill = count)) + 
   geom_contour(aes(z = count), colour = "black", size = 0.5, alpha = 0.5) +
   #geom_sf(data = lakes[3,])+
-  labs(x = NULL, y = NULL) + 
+  labs(x = NULL, y = NULL) +
+  labs(subtitle = "Illirney")+
   scale_fill_gradientn(colours = rev(viridis::cividis(1000)),
                        limits=c(minValue(raster_Ill),maxValue(raster_Ill)) +
                          scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0)))+
   theme_minimal()+
-  theme(legend.title = element_text(size = 16, vjust = 0.5),
+  theme(plot.subtitle = element_text(size = 16, hjust = 0.5),
+        legend.title = element_text(size = 16, vjust = 0.5),
         legend.text = element_text(size = 12, vjust = 0.75))
 print(Ill_plot)
 
@@ -129,6 +146,8 @@ print(Ill_plot)
 
 png(glue("Results/windfields.png"), width = 2500, height = 1000)
 g <- grid.arrange(Elgy_plot, Kha_plot, Ill_plot, nrow = 1, ncol = 3)
-print(annotate_figure(g, top = text_grob(glue("Wind direction and speed in East Siberia"),vjust = 0.8, hjust = 0.5, face = "bold", size = 30)))
+print(annotate_figure(g, top = text_grob(glue("Wind direction and speed in East Siberia"),
+                                         vjust = -1, hjust = 0.5, face = "bold", size = 50),
+                      common.legend = TRUE))
 dev.off()
 

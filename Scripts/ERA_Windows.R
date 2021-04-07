@@ -15,11 +15,29 @@ library(glue)
 map     <- read_sf("Data/ne_50m_land/ne_50m_land.shp") %>% st_geometry()
 ext     <- extent(c(95, 200, 50, 80))
 
+
+
 ## I created a simple sf polygon collection with the lakes
 ## We will create the buffer later
+
 lakes   <- read_sf("Data/lakesSHP/lakes_sf.shp") 
 MODIS <- load(file = "Results/MODIS.RData")
 
+ext_2     <- extent(c(95, 180, 50, 80))
+
+png(glue("Results/studyarea.png"), width = 1000, height = 1000)
+plot(ext_2, main = "Study area", cex.main = 5)
+plot(map, add = TRUE)
+plot(lakes, add = TRUE, col = "blue")
+text(112, 59, "Khamra", cex = 1.5)
+text(165, 66.5, "Illirney", cex = 1.5)
+text(175, 66.5, "Elgygytgyn", cex = 1.5)
+title(xlab = NULL, ylab = NULL)
+dev.off()
+
+
+     
+     
 ####
 # Input data ####
 ####
