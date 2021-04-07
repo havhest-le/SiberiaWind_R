@@ -18,16 +18,17 @@ ext     <- extent(c(95, 200, 50, 80))
 ## I created a simple sf polygon collection with the lakes
 ## We will create the buffer later
 lakes   <- read_sf("Data/lakesSHP/lakes_sf.shp") 
+MODIS <- load(file = "Results/MODIS.RData")
 
 ####
 # Input data ####
 ####
 
 # for Linux4 Server
-files <- list.files(path = "/Volumes/potsdam-1/data/bioing/data/Data_Reanalyse/ERA5/Wind_u_v_pressureLevels", pattern = "*.nc", all.files = T, full.names = T)
+# files <- list.files(path = "/Volumes/potsdam-1/data/bioing/data/Data_Reanalyse/ERA5/Wind_u_v_pressureLevels", pattern = "*.nc", all.files = T, full.names = T)
 
 # for vivis pc
-# files <- list.files(path = "N:/bioing/data/Data_Reanalyse/ERA5/Wind_u_v_pressureLevels", pattern = "*.nc", all.files = T, full.names = T)
+files <- list.files(path = "N:/bioing/data/Data_Reanalyse/ERA5/Wind_u_v_pressureLevels", pattern = "*.nc", all.files = T, full.names = T)
 
 fls_Tab <- do.call("rbind", lapply(files, function(x) {
   nf <- nc_open(x)
@@ -73,28 +74,31 @@ for(y in 1979:2020) {
   crds   <- data.frame(coordinates(uBrick))
   pts    <- st_as_sf(crds, coords = c("x", "y"), crs = 4326) %>% st_transform(proj)
   lks    <- lakes %>% st_transform(proj)
-  lkb    <- lks %>% st_buffer(700000)
+  lkb    <- lks %>% st_buffer(700000) # creating a 700 km buffer for every lake
   ind    <- apply(st_intersects(pts, lkb, sparse = F), 1, any) & apply(st_intersects(pts, map %>% st_transform(proj), sparse = F), 1, any)
+  #  which points crossing lake buffer and map? 1 = nrow
   
   trackPts <- st_coordinates(pts)[ind,]
   endPts   <- crds[ind,]
   
-  # plot(map %>% st_transform(proj) %>% st_buffer(0) %>% st_crop(extent(c(apply(trackPts, 2, function(x) c(min(x), max(x)))))), border = NA)
-  # plot(mask(projectRaster(uBrick[[1]], crs = CRS(proj)), as(map %>% st_transform(proj), "Spatial")), add = T, legend = F)
-  # plot(lakes %>% st_transform(proj), add = T)
-  # points(trackPts, pch = 16, cex = 0.2)
-  # plot(map %>% st_transform(proj), add = T)
+  plot(map %>% st_transform(proj) %>% st_buffer(0) %>% st_crop(extent(c(apply(trackPts, 2, function(x) c(min(x), max(x)))))), border = NA)
+  plot(mask(projectRaster(uBrick[[1]], crs = CRS(proj)), as(map %>% st_transform(proj), "Spatial")), add = T, legend = F)
+  plot(lakes %>% st_transform(proj), add = T) 
+  points(trackPts, pch = 16, cex = 0.2) # Points in buffer 
+  plot(map %>% st_transform(proj), add = T)
   
+  
+  # Wind trajectory
   crdsTab <- do.call("rbind", lapply(1:nlayers(uBrick), function(z) {
 
     wBrick <- projectRaster(brick(uBrick[[z]], vBrick[[z]]), crs = CRS(proj))
     
     for(i in 1:12) {
-      if(i==1) {
+      if(i==1) { # table creating 
         extrWnd <- raster::extract(wBrick, trackPts)
         windTab <- data.table(tm = i, id = 1:nrow(trackPts), lon = trackPts[,1], lat = trackPts[,2], 
                               u = extrWnd[,1], v = extrWnd[,2])
-      } else {
+      } else { # trajectories creating
         new <- with(windTab[windTab$tm==(i-1) & !is.na(windTab$v),], 
                     data.table(tm  = i, id = id, lon = lon+u*60*60, lat = lat+v*60*60))
         new[, c('u', 'v') := data.table(raster::extract(wBrick, new[,c("lon", "lat")]))]
@@ -132,9 +136,9 @@ for(y in 1979:2020) {
     
   }))
   
-  if(file.exists("/Volumes/potsdam-1/data/bioing/user/slisovsk/crdsTab.csv")) {
-    write.table(crdsTab, "/Volumes/potsdam-1/data/bioing/user/slisovsk/crdsTab.csv", sep = ",")
-  } else write.table(crdsTab, "/Volumes/potsdam-1/data/bioing/user/slisovsk/crdsTab.csv", sep = ",", col.names = F, append = TRUE)
+  if(file.exists("N:/bioing/user/slisovsk/crdsTab.csv")) {
+    write.table(crdsTab, "N:/bioing/user/slisovsk/crdsTab.csv", sep = ",")
+  } else write.table(crdsTab, "N:/bioing/user/slisovsk/crdsTab.csv", sep = ",", col.names = F, append = TRUE)
   
   }
   
@@ -143,14 +147,15 @@ for(y in 1979:2020) {
 ### output plot
 crdsTab <- read.csv("N:/bioing/user/slisovsk/crdsTab.csv")
 
-# plot(crdsTab[,c("lon", "lat")], type = "n")
-# plot(map, add = T)
-# points(crdsTab[crdsTab$buffer<10,c("lon", "lat")], pch = 16, cex = 0.4, col= "blue")
-# plot(lakes$geometry, add = T)
-# plot(lakes$geometry, lwd = 13, add = T, col = "red")
+plot(crdsTab[,c("lon", "lat")], type = "n")
+plot(map, add = T)
+points(crdsTab[crdsTab$buffer<10,c("lon", "lat")], pch = 16, cex = 0.4, col= "blue")
+plot(lakes$geometry, add = T)
+plot(lakes$geometry, lwd = 13, add = T, col = "red")
 
 
 ## test
+
 r0 <- raster(extent(as(lakes[1,] %>% st_transform(proj) %>% st_buffer(310000) %>% st_transform(4326), "Spatial")),
              res = .25, crs = 4326)
 # 
