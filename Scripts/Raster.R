@@ -40,16 +40,13 @@ proj   <- glue("+proj=laea +lon_0={mean(ext[1:2])} +lat_0={mean(ext[3:4])}")
 
 # single lakes
 Elgy <- data_tab  %>%
-  group_by(lake) %>%
   filter(lake == "Elgy")
 
 
 Kham <- data_tab  %>%
-  group_by(lake) %>%
   filter(lake == "Khamra")
 
 Ill <- data_tab  %>%
-  group_by(lake) %>%
   filter(lake == "Ill")
 
 
@@ -63,6 +60,7 @@ raster_data_el <- raster(xmn = min(Elgy$lon[Elgy$lon > 0]),
 
 raster_El <- rasterize(Elgy[,c("lon", "lat")], raster_data_el, fun = 'count')
 plot(raster_El)
+# points(Elgy[,c("lon", "lat")], pch = 16, cex = 0.1)
 p_El <- rasterToPoints(raster_El)
 data_El <- data.frame(p_El)
 colnames(data_El) = c("lon", "lat", "count")
@@ -70,7 +68,7 @@ colnames(data_El) = c("lon", "lat", "count")
 Elgy_plot <- ggplot(data_El, aes(x = lon, y = lat)) + 
   geom_raster(aes(fill = count)) + 
   geom_contour(aes(z = count), colour = "black", size = 0.5, alpha = 0.5) +
-  #geom_point(data = lakes[1,]) +
+  geom_sf(data = lakes[1,], inherit.aes = FALSE) +
   scale_fill_gradientn(colours = rev(viridis::cividis(1000)),
                        limits=c(minValue(raster_El),maxValue(raster_El))) +
   scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0)) +
@@ -97,7 +95,7 @@ colnames(data_Kha) = c("lon", "lat", "count")
 Kha_plot  <- ggplot(data = data_Kha,aes(lon, lat)) + 
   geom_raster(aes(fill = count)) + 
   geom_contour(aes(z = count), colour = "black", size = 0.5, alpha = 0.5) +
-  #geom_sf(data = lakes[2,])+
+  geom_sf(data = lakes[2,], inherit.aes = FALSE) +
   labs(x = NULL, y = NULL) + 
   labs(subtitle = "Khamra")+
   scale_fill_gradientn(colours = rev(viridis::cividis(1000)),
@@ -130,7 +128,7 @@ colnames(data_Ill) = c("lon", "lat", "count")
 Ill_plot  <- ggplot(data = data_Ill, aes(lon, lat)) + 
   geom_raster(aes(fill = count)) + 
   geom_contour(aes(z = count), colour = "black", size = 0.5, alpha = 0.5) +
-  #geom_sf(data = lakes[3,])+
+  geom_sf(data = lakes[3,], inherit.aes = FALSE) +
   labs(x = NULL, y = NULL) +
   labs(subtitle = "Illirney")+
   scale_fill_gradientn(colours = rev(viridis::cividis(1000)),
@@ -146,8 +144,8 @@ print(Ill_plot)
 
 png(glue("Results/windfields.png"), width = 2500, height = 1000)
 g <- grid.arrange(Elgy_plot, Kha_plot, Ill_plot, nrow = 1, ncol = 3)
-print(annotate_figure(g, top = text_grob(glue("Wind direction and speed in East Siberia"),
-                                         vjust = -1, hjust = 0.5, face = "bold", size = 50),
-                      common.legend = TRUE))
+annotate_figure(g, top = text_grob(glue("Wind direction and speed in East Siberia"),
+                                         vjust = -1, hjust = 0.5, face = "bold", size = 50))
+print(g)
 dev.off()
 
