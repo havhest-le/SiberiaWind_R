@@ -134,7 +134,7 @@ for(y in 1979:2020) {
     
   }, mc.cores = 4))
   
-  if(file.exists("/Volumes/potsdam-1/data/bioing/user/slisovsk/crdsTab.csv")) {
+  if(!file.exists("/Volumes/potsdam-1/data/bioing/user/slisovsk/crdsTab.csv")) {
     write.table(crdsTab, "/Volumes/potsdam-1/data/bioing/user/slisovsk/crdsTab.csv", sep = ",")
   } else write.table(crdsTab, "/Volumes/potsdam-1/data/bioing/user/slisovsk/crdsTab.csv", sep = ",", col.names = F, append = TRUE)
   
