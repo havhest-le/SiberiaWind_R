@@ -65,15 +65,16 @@ Lakes_inter <- list(Elgy = Inter_Elgy, Kham = Inter_Kham, Ill = Inter_Ill)
 # Plotting
 #####
 
-Plotting <- lapply(Lakes_inter {function(w)
+for(i in 1:length(Lakes_inter)) {
+  w <- Lakes_inter[[i]]
   
   w$Year <- as.factor(w$Year)
-  # meds <- Inter_Kham %>% --> Error? 
-  # group_by(Year) %>%
-  # summarise("med_FRP" = median(FRP, na.rm = TRUE))
+  meds <- w %>%
+    group_by(Year) %>%
+    summarise("med_FRP" = median(FRP, na.rm = TRUE))
   
   # boxplot
-  ggplot(data = w, mapping = aes(x = Year, y = FRP))+
+  boxplot <- ggplot(data = w, mapping = aes(x = Year, y = FRP))+
     stat_boxplot(geom = 'errorbar')+
     geom_boxplot(outlier.size = 1)+
     geom_text(data = meds, aes(y = med_FRP, label = round(med_FRP,2)),size = 2) +
@@ -82,7 +83,6 @@ Plotting <- lapply(Lakes_inter {function(w)
     scale_fill_manual(values=c("#69b3a2", "grey")) +
     scale_alpha_manual(values=c(1,0.1)) +
     theme(legend.position = "none") +
-    labs(title = "The averrage fire radiative power")+
     xlab("Year") +
     ylab("The median of fire radiative power (FRP)") +
     theme(plot.title = element_text(size = 16, hjust = 0.5))
@@ -94,16 +94,45 @@ Plotting <- lapply(Lakes_inter {function(w)
     group_by(year) %>%
     count()
 
-  ggplot() +
+  barplot <- ggplot() +
     geom_bar(data = MODIS_year_median, mapping = aes(x = year, y = n),
              stat = 'identity', width = 0.6, colour = "black", fill = "white") +
     theme_minimal()+
-    labs(title = "The averrage fire radiative power")+
+    labs(title = glue("Lakes_inter{}")) +
     xlab("Year") +
     ylab("The amount pixels of FRP") +
     theme(plot.title = element_text(size = 20, hjust = 0.5))
   
-})
+  png(glue("Results/MODIS_Plot{i}.png"), width = 1200, height = 1200)
+  fig_plots <- ggarrange(boxplot,barplot,nrow = 2, ncol = 1)
+  print(annotate_figure(fig_plots, top = text_grob(glue("The averrage fire radiative power"), vjust = 0.8, hjust = 0.5, face = "bold", size = 30)))
+  dev.off()
+}
+
+# sum of FRP 
+
+# for(i in 1:length(Lakes_inter)) {
+#   w <- Lakes_inter[[i]]
+#   sum <- sum(w$FRP, na.rm = FALSE)
+# }
+
+sum_Elgy <- sum(Inter_Elgy$FRP, na.rm = T)
+sum_Kham <- sum(Inter_Kham$FRP, na.rm = T)
+sum_Ill  <- sum(Inter_Ill$FRP, na.rm = T)
+
+data_sum <- data.frame(name = c("Kham", "Elgy", "Ill"), values = c(sum_Kham, sum_Elgy, sum_Ill))
+
+
+  ggplot() +
+    geom_bar(data = data_sum, mapping = aes(x = name, y = values), 
+             stat = 'identity',  width = 0.6, colour = "black", fill = "white") +
+    theme_minimal()+
+    labs(title = "The amount fire radiative power")+
+    xlab("Lake") +
+    ylab("sum of FRP") +
+    theme(plot.title = element_text(size = 20, hjust = 0.5))
+  
+
 
 #####
 # For Elgy
