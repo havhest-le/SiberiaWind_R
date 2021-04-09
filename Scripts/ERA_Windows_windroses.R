@@ -59,7 +59,7 @@ mapCrop <- map %>%
 
 for(y in 1:2){
   
-  cat(glue("\rWir befinden uns im Jahre {y} nach Christus. Ganz Gallien ist nicht mehr von den R?mern besetzt."))
+  # cat(glue("\r{y}"))
  
   if(y==1) years <- 1980:2000 else years <- 2001:2018
   
@@ -69,6 +69,23 @@ for(y in 1:2){
   # Creating a list for every date with wind direction and speed
   rasterList <- lapply(unique(subTab$path), function(x) {
     
+    levelList <- lapply(1:7, function(level) {
+      u <- raster::crop(brick(as.character(x), varname=  "u", level = level), ext)
+      v <- raster::crop(brick(as.character(x), varname = "v", level = level), ext)
+      list(u, v) })
+    
+    lapply(1:nlayers(levelList[[1]][[1]]), function(dts) {
+      levTmp <- lapply(1:7, function(level) {
+        list(levelList[[level]][[1]][[dts]],
+             levelList[[level]][[2]][[dts]])})
+    
+    uDate <- calc(do.call("brick", lapply(levTmp, function(y) y[[1]])), median, na.rm = T)
+    vDate <- calc(do.call("brick", lapply(levTmp, function(y) y[[2]])), median, na.rm = T)
+    list(uDate, vDate)
+    })
+  })
+      
+      
     u <- raster::crop(brick(x, varname=  "u", level = 1), ext)
     v <- raster::crop(brick(x, varname = "v", level = 1), ext)
     
@@ -195,12 +212,10 @@ for(y in 1:2){
   
   png(glue("Results/WindPlot{y}.png"), width = 1200, height = 1200)
   g <- grid.arrange(figure_1, figure_2, nrow = 2, layout_matrix = rbind(c(1,1), c(2,2)))
-  if(y==1){ print(annotate_figure(g, top = text_grob(glue("East Siberia 1980-2000"),
-                                                    vjust = 0.8, hjust = 0.5, face = "bold", size = 30))) 
-    else print(annotate_figure(g, top = text_grob(glue("East Siberia 2001-2018"),
-                                                       vjust = 0.8, hjust = 0.5, face = "bold", size = 30))) 
-  }
+  print(annotate_figure(g, top = text_grob(glue("East Siberia"), vjust = 0.8, hjust = 0.5, face = "bold", size = 30)))
+  memory.limit(size = 9999999999)
   dev.off()
   
 } ### end
+
 

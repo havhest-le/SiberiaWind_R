@@ -22,13 +22,6 @@ ext     <- extent(c(103.82, 180, 50.07, 80.56))
 # Input data 
 #####
 
-# coordinates lakes
-# lakes   <- read_sf("Data/lakesSHP/lakes_sf.shp")
-# proj   <- glue("+proj=laea +lon_0={mean(ext[1:2])} +lat_0={mean(ext[3:4])}")
-# lks    <- lakes %>% st_transform(proj)
-# lkb    <- lks %>% st_buffer(100000)
-# plot(lkb)
-
 load(file = "Results/lakes_buf.RData")
 Elgy <- lakes_buf[["Elgy"]]
 Kham <- lakes_buf[["Khamra"]]
@@ -43,36 +36,192 @@ MODIS$FRP <- as.numeric(MODIS$FRP)
 MODIS$Year <- as.numeric(format(MODIS$TIME, "%Y"))
 head(MODIS)
 
+xy <- MODIS[,c(2,3)]
 
-raster_frame <- rasterFromXYZ(MODIS) %>% 
-  mask(Elgy) %>% 
-  as("SpatialPixelsDataFrame") %>% 
-  as_data_frame()
-
-
-MODIS_Elgy <- MODIS %>%
-  filter(LONGITUDE >= min(Elgy) & LONGITUDE <= 180 & LATITUDE >= 50.07  & LATITUDE <= 80.56 & FRP > 0)
-head(MODIS_ext)
-
-
-plot(MODIS$FRP)
+MODI_point <- st_as_sf(x = MODIS, 
+                        coords = c("LONGITUDE", "LATITUDE"),
+                        crs = "+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0")
 
 
 # Elgy
-st_intersection()
+Inter_Elgy <- st_intersection(x = MODI_point, y = Elgy)
+plot(Elgy)
+plot(Inter_Elgy$geometry, add = T)
+
+# Khamra
+Inter_Kham <- st_intersection(x = MODI_point, y = Kham)
+plot(Kham)
+plot(Inter_Kham$geometry, add = T)
+
+# Ill
+Inter_Ill <- st_intersection(x = MODI_point, y = Ill)
+plot(Ill)
+plot(Inter_Ill$geometry, add = T)
 
 
-
-
-ext <- as(extent(c(103.82, 180, 50.07, 80.56)), "SpatialPolygons")
-
-
+Lakes_inter <- list(Elgy = Inter_Elgy, Kham = Inter_Kham, Ill = Inter_Ill)
 
 #####
 # Plotting
 #####
 
+Plotting <- lapply(Lakes_inter {function(w)
+  
+  w$Year <- as.factor(w$Year)
+  # meds <- Inter_Kham %>% --> Error? 
+  # group_by(Year) %>%
+  # summarise("med_FRP" = median(FRP, na.rm = TRUE))
+  
+  # boxplot
+  ggplot(data = w, mapping = aes(x = Year, y = FRP))+
+    stat_boxplot(geom = 'errorbar')+
+    geom_boxplot(outlier.size = 1)+
+    geom_text(data = meds, aes(y = med_FRP, label = round(med_FRP,2)),size = 2) +
+    ylim(c(0,100))+
+    theme_minimal()+
+    scale_fill_manual(values=c("#69b3a2", "grey")) +
+    scale_alpha_manual(values=c(1,0.1)) +
+    theme(legend.position = "none") +
+    labs(title = "The averrage fire radiative power")+
+    xlab("Year") +
+    ylab("The median of fire radiative power (FRP)") +
+    theme(plot.title = element_text(size = 16, hjust = 0.5))
+  
+  # Barplot
+  MODIS_year_median <- w %>%
+    mutate(date = as.Date(TIME)) %>%
+    mutate(year = format(date, '%Y')) %>%
+    group_by(year) %>%
+    count()
+
+  ggplot() +
+    geom_bar(data = MODIS_year_median, mapping = aes(x = year, y = n),
+             stat = 'identity', width = 0.6, colour = "black", fill = "white") +
+    theme_minimal()+
+    labs(title = "The averrage fire radiative power")+
+    xlab("Year") +
+    ylab("The amount pixels of FRP") +
+    theme(plot.title = element_text(size = 20, hjust = 0.5))
+  
+})
+
+#####
+# For Elgy
+#####
+Inter_Elgy$Year <- as.factor(Inter_Elgy$Year)
+meds <- Inter_Elgy %>%
+  group_by(Year) %>%
+  summarise("med_FRP" = median(FRP, na.rm = TRUE))
+
+# boxplot
+ggplot(data = Inter_Elgy, mapping = aes(x = Year, y = FRP))+
+  stat_boxplot(geom = 'errorbar')+
+  geom_boxplot(outlier.size = -2)+
+  #geom_text(data = meds, aes(y = med_FRP, label = round(med_FRP,2)),size = 2) +
+  ylim(c(0,70))+
+  theme_minimal()+
+  scale_fill_manual(values=c("#69b3a2", "grey")) +
+  scale_alpha_manual(values=c(1,0.1)) +
+  theme(legend.position = "none") +
+  labs(title = "The averrage fire radiative power")+
+  xlab("Year") +
+  ylab("The median of fire radiative power (FRP)") +
+  theme(plot.title = element_text(size = 16, hjust = 0.5))
+
+# Barplot
+MODIS_year_median <- Inter_Elgy %>%
+  mutate(date = as.Date(TIME)) %>%
+  mutate(year = format(date, '%Y')) %>%
+  group_by(year) %>%
+  count()
+
+ggplot() +
+  geom_bar(data = MODIS_year_median, mapping = aes(x = year, y = n),
+           stat = 'identity', width = 0.6, colour = "black", fill = "white") +
+  theme_minimal()+
+  labs(title = "The averrage fire radiative power")+
+  xlab("Year") +
+  ylab("The amount pixels of FRP") +
+  theme(plot.title = element_text(size = 20, hjust = 0.5))
 
 
+#####
+# For Khamra
+#####
+
+Inter_Kham$Year <- as.factor(Inter_Kham$Year)
+meds <- Inter_Kham %>%
+  group_by(Year) %>%
+  summarise("med_FRP" = median(FRP, na.rm = TRUE))
+
+# boxplot
+ggplot(data = Inter_Kham, mapping = aes(x = Year, y = FRP))+
+  stat_boxplot(geom = 'errorbar')+
+  geom_boxplot(outlier.size = -2)+
+  #geom_text(data = meds, aes(y = med_FRP, label = round(med_FRP,2)),size = 2) +
+  ylim(c(0,70))+
+  theme_minimal()+
+  scale_fill_manual(values=c("#69b3a2", "grey")) +
+  scale_alpha_manual(values=c(1,0.1)) +
+  theme(legend.position = "none") +
+  labs(title = "The averrage fire radiative power")+
+  xlab("Year") +
+  ylab("The median of fire radiative power (FRP)") +
+  theme(plot.title = element_text(size = 16, hjust = 0.5))
+
+# Barplot
+MODIS_year_median <- Inter_Kham %>%
+  mutate(date = as.Date(TIME)) %>%
+  mutate(year = format(date, '%Y')) %>%
+  group_by(year) %>%
+  count()
+
+ggplot() +
+  geom_bar(data = MODIS_year_median, mapping = aes(x = year, y = n),
+           stat = 'identity', width = 0.6, colour = "black", fill = "white") +
+  theme_minimal()+
+  labs(title = "The averrage fire radiative power")+
+  xlab("Year") +
+  ylab("The amount pixels of FRP") +
+  theme(plot.title = element_text(size = 20, hjust = 0.5))
 
 
+#####
+# For Ill
+#####
+
+Inter_Ill$Year <- as.factor(Inter_Ill$Year)
+meds <- Inter_Ill %>%
+  group_by(Year) %>%
+  summarise("med_FRP" = median(FRP, na.rm = TRUE))
+
+# boxplot
+ggplot(data = Inter_Ill, mapping = aes(x = Year, y = FRP))+
+  stat_boxplot(geom = 'errorbar')+
+  geom_boxplot(outlier.size = -2)+
+  #geom_text(data = meds, aes(y = med_FRP, label = round(med_FRP,2)),size = 2) +
+  ylim(c(0,70))+
+  theme_minimal()+
+  scale_fill_manual(values=c("#69b3a2", "grey")) +
+  scale_alpha_manual(values=c(1,0.1)) +
+  theme(legend.position = "none") +
+  labs(title = "The averrage fire radiative power")+
+  xlab("Year") +
+  ylab("The median of fire radiative power (FRP)") +
+  theme(plot.title = element_text(size = 16, hjust = 0.5))
+
+# Barplot
+MODIS_year_median <- Inter_Ill %>%
+  mutate(date = as.Date(TIME)) %>%
+  mutate(year = format(date, '%Y')) %>%
+  group_by(year) %>%
+  count()
+
+ggplot() +
+  geom_bar(data = MODIS_year_median, mapping = aes(x = year, y = n),
+           stat = 'identity', width = 0.6, colour = "black", fill = "white") +
+  theme_minimal()+
+  labs(title = "The averrage fire radiative power")+
+  xlab("Year") +
+  ylab("The amount pixels of FRP") +
+  theme(plot.title = element_text(size = 20, hjust = 0.5))
